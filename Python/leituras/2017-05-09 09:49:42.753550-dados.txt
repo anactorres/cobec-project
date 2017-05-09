@@ -1,0 +1,2 @@
+AAAA-MM-DD HH-MM-SS.ssssss	Xac	Yac	Zac	Xgi	Ygi	Zgi	Xma	Yma	Zma	Wq	Iq	Jq	Kq	
+2017-05-09 09:49:43.754805	2017-05-09 09:49:44.756092	
