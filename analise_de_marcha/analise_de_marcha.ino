@@ -66,9 +66,10 @@ uint16_t fifoCount;     // count of all bytes currently in FIFO
 uint8_t fifoBuffer[42]; // FIFO storage fifoBuffer
 int numbPackets;
 // orientation/motion vars
-float q[4];           // [w, x, y, z]         quaternion container
-float a[3];
-float g[3];
+float q[4]; // [w, x, y, z] quaternion container
+float a[3]; // [x, y, z] acceleration container
+float g[3]; // [x, y, z] gyroscope container
+
 bool is_alive = false;
 int timer_id;
 #ifdef USING_SD_MODULE
@@ -100,7 +101,7 @@ void loop()
 {
   t.update();
   if (digitalRead(BUTTON_PIN)) {
-    delay(250);
+    delay(50);
     if (digitalRead(BUTTON_PIN)) {
       DEBUG_PRINT_("Aguardando liberacao do botao.\n");
       while (digitalRead(BUTTON_PIN)); //Espera soltar o botao
