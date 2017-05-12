@@ -24,6 +24,7 @@
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "Timer.h"
+#include "SoftwareSerial.h"
 
 // Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
 // is used in I2Cdev.h
@@ -31,7 +32,6 @@
 #include "Wire.h"
 #endif
 
-//#define USING_SD_MODULE
 
 #define DEBUG_PRINT_(x) Serial.print(x)
 //#define DEBUG_PRINT_(x)
@@ -50,6 +50,7 @@
 // AD0 low = 0x68 (default for SparkFun breakout and InvenSense evaluation board)
 // AD0 high = 0x69
 MPU6050 mpu;
+SoftwareSerial BTSerial(10, 11); // RX | TX
 
 Timer t;
 //------------------------------------------------------------------------------
@@ -71,10 +72,6 @@ float a[3];
 float g[3];
 bool is_alive = false;
 int timer_id;
-#ifdef USING_SD_MODULE
-SdFat sdCard;
-SdFile meuArquivo;
-#endif /*USING_SD_MODULE*/
 
 bool running_coleta = false;
 
@@ -85,14 +82,6 @@ void setup()
   Serial.begin(115200);
   Wire.begin();
   inicializar_sensor();
-#ifdef USING_SD_MODULE
-  // Inicializa o modulo SD
-  if (!sdCard.begin(chipSelect, SPI_HALF_SPEED))sdCard.initErrorHalt();
-  // Abre o arquivo coleta.txt
-  if (!meuArquivo.open("coleta.txt", O_RDWR | O_CREAT | O_AT_END)) {
-    sdCard.errorHalt("Erro na abertura do arquivo coleta.txt!");
-  }
-#endif /*USING_SD_MODULE*/
   DEBUG_PRINT_("Aguardando sinal do botao.\n");
 }
 
@@ -100,7 +89,7 @@ void loop()
 {
   t.update();
   if (digitalRead(BUTTON_PIN)) {
-    delay(250);
+    delay(50);
     if (digitalRead(BUTTON_PIN)) {
       DEBUG_PRINT_("Aguardando liberacao do botao.\n");
       while (digitalRead(BUTTON_PIN)); //Espera soltar o botao
@@ -111,10 +100,6 @@ void loop()
         // Interrompe o processo e fecha o arquivo
         DEBUG_PRINT_("Aquisicao finalizada.\n");
         t.stop(timer_id);
-#ifdef USING_SD_MODULE
-        meuArquivo.close();
-        DEBUG_PRINT_("Processo de gravacao interrompido. Retire o SD!\n");
-#endif /*USING_SD_MODULE*/
         digitalWrite(LED_PIN, LOW);
       } else {
         //starts the aquisition
@@ -137,10 +122,6 @@ void loop()
 void takeReading() {
   //Le sensor
   ler_sensor();
-#ifdef USING_SD_MODULE
-  //escrever dados no cartao sd
-  escrever_no_cartao_sd();
-#endif /*USING_SD_MODULE*/
   //enviar dados via bluetooth
   //send_packet_via_bt();
   mostrar_dados();
@@ -227,64 +208,32 @@ void mostrar_dados() {
 }
 
 void send_packet_via_bt() {
-  Serial.write(ST); //byte Start Transmission
+  BTSerial.write(ST); //byte Start Transmission
 
   //Assembling packet and sending
-  Serial.write(fifoBuffer[0]); //qw_msb
-  Serial.write(fifoBuffer[1]); //qw_lsb
-  Serial.write(fifoBuffer[4]); //qx_msb
-  Serial.write(fifoBuffer[5]); //qx_lsb
-  Serial.write(fifoBuffer[8]); //qy_msb
-  Serial.write(fifoBuffer[9]); //qy_lsb
-  Serial.write(fifoBuffer[12]); //qz_msb
-  Serial.write(fifoBuffer[13]); //qz_lsb
+  BTSerial.write(fifoBuffer[0]); //qw_msb
+  BTSerial.write(fifoBuffer[1]); //qw_lsb
+  BTSerial.write(fifoBuffer[4]); //qx_msb
+  BTSerial.write(fifoBuffer[5]); //qx_lsb
+  BTSerial.write(fifoBuffer[8]); //qy_msb
+  BTSerial.write(fifoBuffer[9]); //qy_lsb
+  BTSerial.write(fifoBuffer[12]); //qz_msb
+  BTSerial.write(fifoBuffer[13]); //qz_lsb
 
-  Serial.write(fifoBuffer[28]); //ax_msb
-  Serial.write(fifoBuffer[29]); //ax_lsb
-  Serial.write(fifoBuffer[32]); //ay_msb
-  Serial.write(fifoBuffer[33]); //ay_lsb
-  Serial.write(fifoBuffer[36]); //az_msb
-  Serial.write(fifoBuffer[37]); //az_lsb
+  BTSerial.write(fifoBuffer[28]); //ax_msb
+  BTSerial.write(fifoBuffer[29]); //ax_lsb
+  BTSerial.write(fifoBuffer[32]); //ay_msb
+  BTSerial.write(fifoBuffer[33]); //ay_lsb
+  BTSerial.write(fifoBuffer[36]); //az_msb
+  BTSerial.write(fifoBuffer[37]); //az_lsb
 
-  Serial.write(fifoBuffer[16]); //gx_msb
-  Serial.write(fifoBuffer[17]); //gx_lsb
-  Serial.write(fifoBuffer[20]); //gy_msb
-  Serial.write(fifoBuffer[21]); //gy_lsb
-  Serial.write(fifoBuffer[24]); //gz_msb
-  Serial.write(fifoBuffer[25]); //gz_lsb
+  BTSerial.write(fifoBuffer[16]); //gx_msb
+  BTSerial.write(fifoBuffer[17]); //gx_lsb
+  BTSerial.write(fifoBuffer[20]); //gy_msb
+  BTSerial.write(fifoBuffer[21]); //gy_lsb
+  BTSerial.write(fifoBuffer[24]); //gz_msb
+  BTSerial.write(fifoBuffer[25]); //gz_lsb
 
-  Serial.write(ET); //byte End Transmission
-}
-
-void escrever_no_cartao_sd() {
-#ifdef USING_SD_MODULE
-  meuArquivo.write(ST); //byte Start Transmission
-
-  //Assembling packet and sending
-  meuArquivo.write(fifoBuffer[0]); //qw_msb
-  meuArquivo.write(fifoBuffer[1]); //qw_lsb
-  meuArquivo.write(fifoBuffer[4]); //qx_msb
-  meuArquivo.write(fifoBuffer[5]); //qx_lsb
-  meuArquivo.write(fifoBuffer[8]); //qy_msb
-  meuArquivo.write(fifoBuffer[9]); //qy_lsb
-  meuArquivo.write(fifoBuffer[12]); //qz_msb
-  meuArquivo.write(fifoBuffer[13]); //qz_lsb
-
-  meuArquivo.write(fifoBuffer[28]); //ax_msb
-  meuArquivo.write(fifoBuffer[29]); //ax_lsb
-  meuArquivo.write(fifoBuffer[32]); //ay_msb
-  meuArquivo.write(fifoBuffer[33]); //ay_lsb
-  meuArquivo.write(fifoBuffer[36]); //az_msb
-  meuArquivo.write(fifoBuffer[37]); //az_lsb
-
-  meuArquivo.write(fifoBuffer[16]); //gx_msb
-  meuArquivo.write(fifoBuffer[17]); //gx_lsb
-  meuArquivo.write(fifoBuffer[20]); //gy_msb
-  meuArquivo.write(fifoBuffer[21]); //gy_lsb
-  meuArquivo.write(fifoBuffer[24]); //gz_msb
-  meuArquivo.write(fifoBuffer[25]); //gz_lsb
-
-  meuArquivo.write(ET); //byte End Transmission
-#endif /*USING_SD_MODULE*/
+  BTSerial.write(ET); //byte End Transmission
 }
 
