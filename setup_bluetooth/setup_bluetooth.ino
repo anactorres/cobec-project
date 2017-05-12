@@ -37,6 +37,9 @@ void setup()
   Serial.println("********************AUTOCONFIG*********************");
   Serial.println("Starting config");
   BTSerial.begin(bauds[i]);
+  delay(200);
+  //BTSerial.print("AT+ORGL\r\n");
+  /*
   delay(1000);
 
   // Should respond with OK
@@ -71,8 +74,8 @@ void setup()
   BTSerial.print("AT+RESET\r\n");
   waitForResponse();
 
-
-  Serial.println("Done!");
+*/
+  //Serial.println("Done!");
 }
 
 
@@ -102,6 +105,6 @@ void loop()
       Serial.println(bauds[i]);
       BTSerial.begin(bauds[i]);
     }
-    BTSerial.write(Serial.read());
+    BTSerial.write(leitura);
   }
 }

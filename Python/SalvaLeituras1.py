@@ -2,8 +2,8 @@ import serial
 from datetime import datetime
 
 arduinoData = serial.Serial()
-arduinoData.port = '/dev/rfcomm1'
-arduinoData.baudrate = 115200
+arduinoData.port = '/dev/rfcomm0'
+arduinoData.baudrate = 9600
 arduinoData.timeout = 1
 arduinoData.open()
 
@@ -13,7 +13,7 @@ horario = datetime.now()
 horario_anterior = horario
 arq = open( "leituras/" + str(horario) + '-dados.txt', 'w')
 
-log = 'AAAA-MM-DD HH-MM-SS.ssssss\tXac\tYac\tZac\tXgi\tYgi\tZgi\tXma\tYma\tZma\tWq\tIq\tJq\tKq\t\n'
+log = 'AAAA-MM-DD HH-MM-SS.ssssss\tquat_W_h\tquat_W_l\tquat_X_h\tquat_W_l\tquat_Y_h\tquat_Y_l\tquat_Z_h\tquat_Z_l\t\n'
 arq.write(log)
 
 arduinoData.flushInput()

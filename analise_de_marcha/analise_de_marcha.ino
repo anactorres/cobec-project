@@ -20,7 +20,6 @@
  |  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  40  41                          |
  * ================================================================================================ */
 
-#include "SdFat.h"
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "Timer.h"
@@ -79,7 +78,8 @@ void setup()
 {
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, OUTPUT);
-  Serial.begin(115200);
+  Serial.begin(38400);
+  BTSerial.begin(9600);
   Wire.begin();
   inicializar_sensor();
   DEBUG_PRINT_("Aguardando sinal do botao.\n");
@@ -89,7 +89,7 @@ void loop()
 {
   t.update();
   if (digitalRead(BUTTON_PIN)) {
-    delay(50);
+    delay(100);
     if (digitalRead(BUTTON_PIN)) {
       DEBUG_PRINT_("Aguardando liberacao do botao.\n");
       while (digitalRead(BUTTON_PIN)); //Espera soltar o botao
@@ -123,7 +123,7 @@ void takeReading() {
   //Le sensor
   ler_sensor();
   //enviar dados via bluetooth
-  //send_packet_via_bt();
+  send_packet_via_bt();
   mostrar_dados();
 }
 
@@ -141,11 +141,11 @@ void inicializar_sensor() {
     delay(50);
     if (ret == 0) {
       mpu.setDMPEnabled(true); /*Not Calibrated yet*/
-      mpu.setXAccelOffset(-1759);
-      mpu.setYAccelOffset(1051);
-      mpu.setZAccelOffset(1510);
-      mpu.setXGyroOffset(-117);
-      mpu.setYGyroOffset(-27);
+      mpu.setXAccelOffset(-1791);
+      mpu.setYAccelOffset(1027);
+      mpu.setZAccelOffset(1496);
+      mpu.setXGyroOffset(-115);
+      mpu.setYGyroOffset(-26);
       mpu.setZGyroOffset(71);
       DEBUG_PRINT_("Sensor Iniciado.\n");
       DEBUG_PRINT_("Testando conexao - " + String(mpu.testConnection()) + "\n");
@@ -220,6 +220,7 @@ void send_packet_via_bt() {
   BTSerial.write(fifoBuffer[12]); //qz_msb
   BTSerial.write(fifoBuffer[13]); //qz_lsb
 
+  /*
   BTSerial.write(fifoBuffer[28]); //ax_msb
   BTSerial.write(fifoBuffer[29]); //ax_lsb
   BTSerial.write(fifoBuffer[32]); //ay_msb
@@ -233,7 +234,7 @@ void send_packet_via_bt() {
   BTSerial.write(fifoBuffer[21]); //gy_lsb
   BTSerial.write(fifoBuffer[24]); //gz_msb
   BTSerial.write(fifoBuffer[25]); //gz_lsb
-
+  */
   BTSerial.write(ET); //byte End Transmission
 }
 
