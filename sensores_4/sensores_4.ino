@@ -3,6 +3,10 @@
 #include "Timer.h"
 #include "SoftwareSerial.h"
 
+#define saidaC 2
+#define saidaB 3
+#define saidaA 4
+
 // Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
 // is used in I2Cdev.h
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -12,9 +16,9 @@
 #define DEBUG_PRINT_(x) Serial.print(x)
 //#define DEBUG_PRINT_(x)
 
-//#define SHOW_DATA(x) Serial.print(x)
-#define SHOW_DATA(x)
-#define NOSHOWDATA
+#define SHOW_DATA(x) Serial.print(x)
+//#define SHOW_DATA(x)
+//#define NOSHOWDATA
 
 #define LED_PIN 13
 #define sampFreq 100
@@ -38,13 +42,17 @@ const int offsets2[6] = { -331, 537,  1702, 142,  51,   35};
 const int offsets3[6] = { -2850,  312,  1612, -34,  6,    49};
 const int offsets4[6] = { 715,  401,  1242, 5,    46,   54};
 
+uint8_t fifoBuffer1[42]; // FIFO storage fifoBuffer of mpu1
+uint8_t fifoBuffer2[42]; // FIFO storage fifoBuffer of mpu2
+uint8_t fifoBuffer3[42]; // FIFO storage fifoBuffer of mpu3
+uint8_t fifoBuffer4[42]; // FIFO storage fifoBuffer of mpu4
+
 Timer t;
 int timer_id;
 
 const double sampPeriod = (1.0 / sampFreq) * 1000000;//Sampling period in us
 String serialOp; // Variable for receiving commands from serial
 uint16_t fifoCount;     // count of all bytes currently in FIFO
-uint8_t fifoBuffer[42]; // FIFO storage fifoBuffer
 int numbPackets;
 float q[4]; // [w, x, y, z] quaternion container
 float a[3]; // [x, y, z] acceleration container
@@ -55,7 +63,7 @@ bool led_state = LOW;
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
-  pinMode(PINS1, OUTPUT);    pinMode(PINS2, OUTPUT);    pinMode(PINS3, OUTPUT);    pinMode(PINS4, OUTPUT);
+  pinMode(saidaC, OUTPUT);  pinMode(saidaB, OUTPUT);  pinMode(saidaA, OUTPUT);
   Serial.begin(115200);
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -82,28 +90,57 @@ void setup() {
 
 void loop() {
   DEBUG_PRINT_("$");
-  ler_sensor_1(); SHOW_DATA("1:\t"); mostrar_dados(); send_serial_packet();
-  ler_sensor_2(); SHOW_DATA("2:\t"); mostrar_dados(); send_serial_packet();
-  ler_sensor_3(); SHOW_DATA("3:\t"); mostrar_dados(); send_serial_packet();
-  ler_sensor_4(); SHOW_DATA("4:\t"); mostrar_dados(); send_serial_packet();
+  ler_sensor_1(); SHOW_DATA("1:\t"); mostrar_dados_1(); //send_serial_packet_1();
+  ler_sensor_2(); SHOW_DATA("2:\t"); mostrar_dados_2(); //send_serial_packet_2();
+  ler_sensor_3(); SHOW_DATA("3:\t"); mostrar_dados_3(); //send_serial_packet_3();
+  ler_sensor_4(); SHOW_DATA("4:\t"); mostrar_dados_4();// send_serial_packet_4();
   DEBUG_PRINT_("\n");
   digitalWrite(LED_PIN, led_state);
   led_state = !led_state;
 }
 
-void select_sensor(int sensor_num) {
-  switch (sensor_num) {
+
+void select_sensor(int sensor) {
+  switch (sensor) {
+    case 0:
+      digitalWrite(saidaA, 0);
+      digitalWrite(saidaB, 0);
+      digitalWrite(saidaC, 0);
+      break;
     case 1:
-      digitalWrite(PINS1, LOW); digitalWrite(PINS2, HIGH); digitalWrite(PINS3, HIGH); digitalWrite(PINS4, HIGH);
+      digitalWrite(saidaA, 0);
+      digitalWrite(saidaB, 0);
+      digitalWrite(saidaC, 1);
       break;
     case 2:
-      digitalWrite(PINS1, HIGH); digitalWrite(PINS2, LOW); digitalWrite(PINS3, HIGH); digitalWrite(PINS4, HIGH);
+      digitalWrite(saidaA, 0);
+      digitalWrite(saidaB, 1);
+      digitalWrite(saidaC, 0);
       break;
     case 3:
-      digitalWrite(PINS1, HIGH); digitalWrite(PINS2, HIGH); digitalWrite(PINS3, LOW); digitalWrite(PINS4, HIGH);
+      digitalWrite(saidaA, 0);
+      digitalWrite(saidaB, 1);
+      digitalWrite(saidaC, 1);
       break;
     case 4:
-      digitalWrite(PINS1, HIGH); digitalWrite(PINS2, HIGH); digitalWrite(PINS3, HIGH); digitalWrite(PINS4, LOW);
+      digitalWrite(saidaA, 1);
+      digitalWrite(saidaB, 0);
+      digitalWrite(saidaC, 0);
+      break;
+    case 5:
+      digitalWrite(saidaA, 1);
+      digitalWrite(saidaB, 0);
+      digitalWrite(saidaC, 1);
+      break;
+    case 6:
+      digitalWrite(saidaA, 1);
+      digitalWrite(saidaB, 1);
+      digitalWrite(saidaC, 0);
+      break;
+    case 7:
+      digitalWrite(saidaA, 1);
+      digitalWrite(saidaB, 1);
+      digitalWrite(saidaC, 1);
       break;
   }
   delayMicroseconds(10);
@@ -254,7 +291,7 @@ void ler_sensor_1() {
     DEBUG_PRINT_("FIFO sensor 1 overflow!\n");
   } else {
     for (int i = 0; i < numbPackets; i++) {
-      mpu1.getFIFOBytes(fifoBuffer, PSDMP);
+      mpu1.getFIFOBytes(fifoBuffer1, PSDMP);
     }
   }
   numbPackets = 0;
@@ -269,7 +306,7 @@ void ler_sensor_2() {
     DEBUG_PRINT_("FIFO sensor 2 overflow!\n");
   } else {
     for (int i = 0; i < numbPackets; i++) {
-      mpu2.getFIFOBytes(fifoBuffer, PSDMP);
+      mpu2.getFIFOBytes(fifoBuffer2, PSDMP);
     }
   }
   numbPackets = 0;
@@ -284,7 +321,7 @@ void ler_sensor_3() {
     DEBUG_PRINT_("FIFO sensor 3 overflow!\n");
   } else {
     for (int i = 0; i < numbPackets; i++) {
-      mpu3.getFIFOBytes(fifoBuffer, PSDMP);
+      mpu3.getFIFOBytes(fifoBuffer3, PSDMP);
     }
   }
   numbPackets = 0;
@@ -299,29 +336,155 @@ void ler_sensor_4() {
     DEBUG_PRINT_("FIFO sensor 4 overflow!\n");
   } else {
     for (int i = 0; i < numbPackets; i++) {
-      mpu4.getFIFOBytes(fifoBuffer, PSDMP);
+      mpu4.getFIFOBytes(fifoBuffer4, PSDMP);
     }
   }
   numbPackets = 0;
 }
 
-void mostrar_dados() {
+void mostrar_dados_1() {
 #ifndef NOSHOWDATA
   //Quaternion
-  q[0] = (float) ((fifoBuffer[0] << 8) | fifoBuffer[1]) / 16384.0f;
-  q[1] = (float) ((fifoBuffer[4] << 8) | fifoBuffer[5]) / 16384.0f;
-  q[2] = (float) ((fifoBuffer[8] << 8) | fifoBuffer[9]) / 16384.0f;
-  q[3] = (float) ((fifoBuffer[12] << 8) | fifoBuffer[13]) / 16384.0f;
+  q[0] = (float) ((fifoBuffer1[0] << 8) | fifoBuffer1[1]) / 16384.0f;
+  q[1] = (float) ((fifoBuffer1[4] << 8) | fifoBuffer1[5]) / 16384.0f;
+  q[2] = (float) ((fifoBuffer1[8] << 8) | fifoBuffer1[9]) / 16384.0f;
+  q[3] = (float) ((fifoBuffer1[12] << 8) | fifoBuffer1[13]) / 16384.0f;
 
   //Aceleracao
-  a[0] = (float) ((fifoBuffer[28] << 8) | fifoBuffer[29]) / 8192.0f;
-  a[1] = (float) ((fifoBuffer[32] << 8) | fifoBuffer[33]) / 8192.0f;
-  a[2] = (float) ((fifoBuffer[36] << 8) | fifoBuffer[37]) / 8192.0f;
+  a[0] = (float) ((fifoBuffer1[28] << 8) | fifoBuffer1[29]) / 8192.0f;
+  a[1] = (float) ((fifoBuffer1[32] << 8) | fifoBuffer1[33]) / 8192.0f;
+  a[2] = (float) ((fifoBuffer1[36] << 8) | fifoBuffer1[37]) / 8192.0f;
 
   //Giroscopio
-  g[0] = (float) ((fifoBuffer[16] << 8) | fifoBuffer[17]) / 131.0f;
-  g[1] = (float) ((fifoBuffer[20] << 8) | fifoBuffer[21]) / 131.0f;
-  g[2] = (float) ((fifoBuffer[24] << 8) | fifoBuffer[25]) / 131.0f;
+  g[0] = (float) ((fifoBuffer1[16] << 8) | fifoBuffer1[17]) / 131.0f;
+  g[1] = (float) ((fifoBuffer1[20] << 8) | fifoBuffer1[21]) / 131.0f;
+  g[2] = (float) ((fifoBuffer1[24] << 8) | fifoBuffer1[25]) / 131.0f;
+  //Quaternions
+  DEBUG_PRINT_(q[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[2]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[3]);
+  DEBUG_PRINT_("\t-\t");
+  //accel in G
+  DEBUG_PRINT_(a[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(a[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(a[2]);
+  DEBUG_PRINT_("\t-\t");
+  //g[1]ro in degrees/s
+  DEBUG_PRINT_(g[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(g[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(g[2]);
+  DEBUG_PRINT_("\t");
+#endif /*NOSHOWDATA*/
+}
+void mostrar_dados_2() {
+#ifndef NOSHOWDATA
+  //Quaternion
+  q[0] = (float) ((fifoBuffer2[0] << 8) | fifoBuffer2[1]) / 16384.0f;
+  q[1] = (float) ((fifoBuffer2[4] << 8) | fifoBuffer2[5]) / 16384.0f;
+  q[2] = (float) ((fifoBuffer2[8] << 8) | fifoBuffer2[9]) / 16384.0f;
+  q[3] = (float) ((fifoBuffer2[12] << 8) | fifoBuffer2[13]) / 16384.0f;
+
+  //Aceleracao
+  a[0] = (float) ((fifoBuffer2[28] << 8) | fifoBuffer2[29]) / 8192.0f;
+  a[1] = (float) ((fifoBuffer2[32] << 8) | fifoBuffer2[33]) / 8192.0f;
+  a[2] = (float) ((fifoBuffer2[36] << 8) | fifoBuffer2[37]) / 8192.0f;
+
+  //Giroscopio
+  g[0] = (float) ((fifoBuffer2[16] << 8) | fifoBuffer2[17]) / 131.0f;
+  g[1] = (float) ((fifoBuffer2[20] << 8) | fifoBuffer2[21]) / 131.0f;
+  g[2] = (float) ((fifoBuffer2[24] << 8) | fifoBuffer2[25]) / 131.0f;
+  //Quaternions
+  DEBUG_PRINT_(q[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[2]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[3]);
+  DEBUG_PRINT_("\t-\t");
+  //accel in G
+  DEBUG_PRINT_(a[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(a[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(a[2]);
+  DEBUG_PRINT_("\t-\t");
+  //g[1]ro in degrees/s
+  DEBUG_PRINT_(g[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(g[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(g[2]);
+  DEBUG_PRINT_("\t");
+#endif /*NOSHOWDATA*/
+}
+void mostrar_dados_3() {
+#ifndef NOSHOWDATA
+  //Quaternion
+  q[0] = (float) ((fifoBuffer3[0] << 8) | fifoBuffer3[1]) / 16384.0f;
+  q[1] = (float) ((fifoBuffer3[4] << 8) | fifoBuffer3[5]) / 16384.0f;
+  q[2] = (float) ((fifoBuffer3[8] << 8) | fifoBuffer3[9]) / 16384.0f;
+  q[3] = (float) ((fifoBuffer3[12] << 8) | fifoBuffer3[13]) / 16384.0f;
+
+  //Aceleracao
+  a[0] = (float) ((fifoBuffer3[28] << 8) | fifoBuffer3[29]) / 8192.0f;
+  a[1] = (float) ((fifoBuffer3[32] << 8) | fifoBuffer3[33]) / 8192.0f;
+  a[2] = (float) ((fifoBuffer3[36] << 8) | fifoBuffer3[37]) / 8192.0f;
+
+  //Giroscopio
+  g[0] = (float) ((fifoBuffer3[16] << 8) | fifoBuffer3[17]) / 131.0f;
+  g[1] = (float) ((fifoBuffer3[20] << 8) | fifoBuffer3[21]) / 131.0f;
+  g[2] = (float) ((fifoBuffer3[24] << 8) | fifoBuffer3[25]) / 131.0f;
+  //Quaternions
+  DEBUG_PRINT_(q[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[2]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(q[3]);
+  DEBUG_PRINT_("\t-\t");
+  //accel in G
+  DEBUG_PRINT_(a[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(a[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(a[2]);
+  DEBUG_PRINT_("\t-\t");
+  //g[1]ro in degrees/s
+  DEBUG_PRINT_(g[0]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(g[1]);
+  DEBUG_PRINT_("\t");
+  DEBUG_PRINT_(g[2]);
+  DEBUG_PRINT_("\t");
+#endif /*NOSHOWDATA*/
+}
+void mostrar_dados_4() {
+#ifndef NOSHOWDATA
+  //Quaternion
+  q[0] = (float) ((fifoBuffer4[0] << 8) | fifoBuffer4[1]) / 16384.0f;
+  q[1] = (float) ((fifoBuffer4[4] << 8) | fifoBuffer4[5]) / 16384.0f;
+  q[2] = (float) ((fifoBuffer4[8] << 8) | fifoBuffer4[9]) / 16384.0f;
+  q[3] = (float) ((fifoBuffer4[12] << 8) | fifoBuffer4[13]) / 16384.0f;
+
+  //Aceleracao
+  a[0] = (float) ((fifoBuffer4[28] << 8) | fifoBuffer4[29]) / 8192.0f;
+  a[1] = (float) ((fifoBuffer4[32] << 8) | fifoBuffer4[33]) / 8192.0f;
+  a[2] = (float) ((fifoBuffer4[36] << 8) | fifoBuffer4[37]) / 8192.0f;
+
+  //Giroscopio
+  g[0] = (float) ((fifoBuffer4[16] << 8) | fifoBuffer4[17]) / 131.0f;
+  g[1] = (float) ((fifoBuffer4[20] << 8) | fifoBuffer4[21]) / 131.0f;
+  g[2] = (float) ((fifoBuffer4[24] << 8) | fifoBuffer4[25]) / 131.0f;
   //Quaternions
   DEBUG_PRINT_(q[0]);
   DEBUG_PRINT_("\t");
@@ -348,16 +511,52 @@ void mostrar_dados() {
 #endif /*NOSHOWDATA*/
 }
 
-void send_serial_packet() {
+void send_serial_packet_1() {
   //Assembling packet and sending
-  Serial.write(fifoBuffer[0]); //qw_msb
-  Serial.write(fifoBuffer[1]); //qw_lsb
-  Serial.write(fifoBuffer[4]); //qx_msb
-  Serial.write(fifoBuffer[5]); //qx_lsb
-  Serial.write(fifoBuffer[8]); //qy_msb
-  Serial.write(fifoBuffer[9]); //qy_lsb
-  Serial.write(fifoBuffer[12]); //qz_msb
-  Serial.write(fifoBuffer[13]); //qz_lsb
+  Serial.write(fifoBuffer1[0]); //qw_msb
+  Serial.write(fifoBuffer1[1]); //qw_lsb
+  Serial.write(fifoBuffer1[4]); //qx_msb
+  Serial.write(fifoBuffer1[5]); //qx_lsb
+  Serial.write(fifoBuffer1[8]); //qy_msb
+  Serial.write(fifoBuffer1[9]); //qy_lsb
+  Serial.write(fifoBuffer1[12]); //qz_msb
+  Serial.write(fifoBuffer1[13]); //qz_lsb
+}
+
+void send_serial_packet_2() {
+  //Assembling packet and sending
+  Serial.write(fifoBuffer2[0]); //qw_msb
+  Serial.write(fifoBuffer2[1]); //qw_lsb
+  Serial.write(fifoBuffer2[4]); //qx_msb
+  Serial.write(fifoBuffer2[5]); //qx_lsb
+  Serial.write(fifoBuffer2[8]); //qy_msb
+  Serial.write(fifoBuffer2[9]); //qy_lsb
+  Serial.write(fifoBuffer2[12]); //qz_msb
+  Serial.write(fifoBuffer2[13]); //qz_lsb
+}
+
+void send_serial_packet_3() {
+  //Assembling packet and sending
+  Serial.write(fifoBuffer3[0]); //qw_msb
+  Serial.write(fifoBuffer3[1]); //qw_lsb
+  Serial.write(fifoBuffer3[4]); //qx_msb
+  Serial.write(fifoBuffer3[5]); //qx_lsb
+  Serial.write(fifoBuffer3[8]); //qy_msb
+  Serial.write(fifoBuffer3[9]); //qy_lsb
+  Serial.write(fifoBuffer3[12]); //qz_msb
+  Serial.write(fifoBuffer3[13]); //qz_lsb
+}
+
+void send_serial_packet_4() {
+  //Assembling packet and sending
+  Serial.write(fifoBuffer4[0]); //qw_msb
+  Serial.write(fifoBuffer4[1]); //qw_lsb
+  Serial.write(fifoBuffer4[4]); //qx_msb
+  Serial.write(fifoBuffer4[5]); //qx_lsb
+  Serial.write(fifoBuffer4[8]); //qy_msb
+  Serial.write(fifoBuffer4[9]); //qy_lsb
+  Serial.write(fifoBuffer4[12]); //qz_msb
+  Serial.write(fifoBuffer4[13]); //qz_lsb
 }
 
 
